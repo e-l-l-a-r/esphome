@@ -169,8 +169,8 @@ namespace ds18b20 {
   }
 
   void DS18B20Sensor::set_str_address(const std::string &address){
-    this->address_ = std::stoul(address, nullptr, 16);
-    ESP_LOGD(TAG, "Set address to: 0x%s", format_hex(this->address_));
+    this->address_ = std::stoull(address, nullptr, 16);
+    ESP_LOGD(TAG, "Set address to: 0x%s", format_hex(this->address_).c_str());
     setup();
     update();
   }
