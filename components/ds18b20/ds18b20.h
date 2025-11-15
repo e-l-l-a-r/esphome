@@ -21,10 +21,12 @@ public:
     void set_resolution(uint8_t resolution) { this->resolution_ = resolution; }
 
     void set_str_address(const std::string &address);
+    void set_offset(const float offset){ offset_ = offset; ESP_LOGD(TAG, "Set offset to: %.1f", offset_);}
 
 protected:
     uint8_t resolution_;
     uint8_t scratch_pad_[9] = {0};
+    float offset_ = 0.0f;
 
     /// Get the number of milliseconds we have to wait for the conversion phase.
     uint16_t millis_to_wait_for_conversion_() const;

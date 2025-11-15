@@ -51,8 +51,8 @@ namespace ds18b20 {
       }
 
       float tempc = this->get_temp_c_();
-      ESP_LOGD(TAG, "'%s': Got Temperature=%.1f°C", this->get_name().c_str(), tempc);
-      this->publish_state(tempc);
+      ESP_LOGD(TAG, "'%s': Got Temperature=%.1f°C; Offset = %.1f", this->get_name().c_str(), tempc, offset_);
+      this->publish_state(tempc + offset_);
     });
   }
 
