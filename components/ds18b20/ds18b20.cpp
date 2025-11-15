@@ -175,5 +175,11 @@ namespace ds18b20 {
     update();
   }
 
+  void DS18B20Sensor::set_offset(const float offset)
+  {
+    offset_ = offset;
+    ESP_LOGD(TAG, "Set offset to: %.1f", offset_);
+  }
+
 } // ds18b20
 } // esphome

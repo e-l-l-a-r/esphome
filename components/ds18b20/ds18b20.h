@@ -21,7 +21,7 @@ public:
     void set_resolution(uint8_t resolution) { this->resolution_ = resolution; }
 
     void set_str_address(const std::string &address);
-    void set_offset(const float offset){ offset_ = offset; ESP_LOGD(TAG, "Set offset to: %.1f", offset_);}
+    void set_offset(const float offset);
 
 protected:
     uint8_t resolution_;
