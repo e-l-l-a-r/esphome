@@ -20,6 +20,8 @@ public:
     /// Set the resolution for this sensor.
     void set_resolution(uint8_t resolution) { this->resolution_ = resolution; }
 
+    void set_address(const std::string &address) { this->address_ = strtol(address.c_str(), nullptr, 16); }
+
 protected:
     uint8_t resolution_;
     uint8_t scratch_pad_[9] = {0};
