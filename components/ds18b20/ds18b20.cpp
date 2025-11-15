@@ -70,7 +70,7 @@ namespace ds18b20 {
   }
 
   void DS18B20Sensor::setup() {
-    if (!this->check_address_or_index_())
+    if (this->address_ == 0)
       return;
     if (!this->read_scratch_pad_())
       return;
