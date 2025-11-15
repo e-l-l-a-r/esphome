@@ -168,5 +168,12 @@ namespace ds18b20 {
       return devices_;
   }
 
+  void DS18B20Sensor::set_str_address(const std::string &address){
+    this->address_ = strtol(address.c_str(), nullptr, 16);
+    ESP_LOGD(TAG, "Set address to: 0x%s", format_hex(item))
+    setup();
+    update();
+  }
+
 } // ds18b20
 } // esphome

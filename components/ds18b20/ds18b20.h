@@ -20,7 +20,7 @@ public:
     /// Set the resolution for this sensor.
     void set_resolution(uint8_t resolution) { this->resolution_ = resolution; }
 
-    void set_str_address(const std::string &address) { this->address_ = strtol(address.c_str(), nullptr, 16); setup(); update(); }
+    void set_str_address(const std::string &address);
 
 protected:
     uint8_t resolution_;
