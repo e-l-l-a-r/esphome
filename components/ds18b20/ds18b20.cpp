@@ -1,7 +1,3 @@
-//
-// Created by ellar on 15.11.25.
-//
-
 #include "ds18b20.h"
 #include "esphome/core/log.h"
 

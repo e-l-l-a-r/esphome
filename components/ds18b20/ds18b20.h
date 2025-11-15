@@ -1,7 +1,3 @@
-//
-// Created by ellar on 15.11.25.
-//
-
 #pragma once
 
 #include "esphome/core/component.h"
