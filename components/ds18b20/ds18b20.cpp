@@ -19,7 +19,7 @@ namespace ds18b20 {
     }
 
     void DS18B20Sensor::rescan() {
-        this->bus_->scan();
+        this->bus_->search();
     }
 
     const std::vector<std::string> DS18B20Sensor::get_devices()
