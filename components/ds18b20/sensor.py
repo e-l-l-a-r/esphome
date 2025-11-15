@@ -12,7 +12,9 @@ ds18b20_ns = cg.esphome_ns.namespace("ds18b20")
 
 DS18B20Sensor = ds18b20_ns.class_(
     "DS18B20Sensor",
-    dallas_temp.DallasTemperatureSensor,
+    cg.PollingComponent,
+    sensor.Sensor,
+    one_wire.OneWireDevice,
 )
 
 CONFIG_SCHEMA = (
