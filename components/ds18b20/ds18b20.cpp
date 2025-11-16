@@ -64,7 +64,7 @@ namespace ds18b20 {
       }
     } else {
       ESP_LOGW(TAG, "'%s' - reading scratch pad failed bus reset", this->get_name().c_str());
-      this->status_set_warning(LOG_STR("bus reset failed").c_str());
+      this->status_set_warning(LOG_STR("bus reset failed")->c_str());
     }
     return success;
   }
@@ -124,7 +124,7 @@ namespace ds18b20 {
               crc8(this->scratch_pad_, 8));
   #endif
     if (!chksum_validity) {
-      this->status_set_warning(LOG_STR("scratch pad checksum invalid").c_str());
+      this->status_set_warning(LOG_STR("scratch pad checksum invalid")->c_str());
       ESP_LOGD(TAG, "Scratch pad: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X (%02X)", this->scratch_pad_[0],
                this->scratch_pad_[1], this->scratch_pad_[2], this->scratch_pad_[3], this->scratch_pad_[4],
                this->scratch_pad_[5], this->scratch_pad_[6], this->scratch_pad_[7], this->scratch_pad_[8],
