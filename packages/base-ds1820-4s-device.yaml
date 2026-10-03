@@ -1,0 +1,118 @@
+esphome:
+  on_boot:
+    then:
+      - delay: 5s
+      - button.press: scan_button
+      - script.execute: init_t0
+      - script.execute: init_t1
+      - script.execute: init_t2
+      - script.execute: init_t3
+
+  devices:
+      - id: ds1820_temp
+        name: "Температура"
+
+packages:
+  t0_sensor: !include
+    file: base-ds1820-sensor.yaml
+    vars:
+      id: t0
+      name: T0
+      device: ds1820_temp
+  t1_sensor: !include
+    file: base-ds1820-sensor.yaml
+    vars:
+      id: t1
+      name: T1
+      device: ds1820_temp
+  t2_sensor: !include
+    file: base-ds1820-sensor.yaml
+    vars:
+      id: t2
+      name: T2
+      device: ds1820_temp
+  t3_sensor: !include
+    file: base-ds1820-sensor.yaml
+    vars:
+      id: t3
+      name: T3
+      device: ds1820_temp
+
+external_components:
+  # equivalent shorthand for GitHub
+  - source: 
+      type: git
+      url: https://github.com/e-l-l-a-r/esphome
+      ref: fix/ds18b20-esphome-2026
+    components: 
+      - ds18b20
+
+# Шина 1-Wire
+one_wire:
+  - platform: gpio
+    pin: GPIO05
+    id: dallas_bus
+
+# === ГЛОБАЛЫ ДЛЯ ПОПРАВОК ===
+globals:
+  - id: sensor_list_str
+    type: std::string
+    initial_value: "\"Инициализация...\""
+
+sensor:
+  - platform: template
+    name: min_t
+    device_id: ds1820_temp
+    unit_of_measurement: "°C"
+    device_class: "temperature"
+    accuracy_decimals: 1
+    lambda: !lambda return min({id(t0).state, id(t1).state, id(t2).state, id(t3).state});
+
+  - platform: template
+    name: max_t
+    device_id: ds1820_temp
+    unit_of_measurement: "°C"
+    device_class: "temperature"
+    accuracy_decimals: 1
+    lambda: !lambda return max({id(t0).state, id(t1).state, id(t2).state, id(t3).state});
+
+  - platform: template
+    name: avg_t
+    device_id: ds1820_temp
+    unit_of_measurement: "°C"
+    device_class: "temperature"
+    accuracy_decimals: 1
+    lambda: !lambda return (id(t0).state + id(t1).state + id(t2).state + id(t3).state) / 4;
+
+# === ТЕКСТОВЫЙ СЕНСОР СО СПИСКОМ АДРЕСОВ ===
+text_sensor:
+  - platform: template
+    name: "Подключённые DS18B20"
+    id: connected_sensors
+    device_id: ds1820_temp
+    lambda: !lambda return id(sensor_list_str);
+
+# === СКРИПТ СКАНИРОВАНИЯ ===
+script:
+  - id: scan_sensors
+    mode: restart
+    then:
+      - lambda: |-
+          id(t0)->rescan();
+          auto raw = id(t0)->get_devices();
+          std::string list;
+          for (auto a : raw) {
+            if (!a.empty()) list += a + "\n";
+          }
+          if (list.empty()) list = "Нет датчиков";
+          id(sensor_list_str) = list;
+          id(connected_sensors).publish_state(list);
+
+# === КНОПКА ===
+button:
+  - platform: template
+    name: "Сканировать датчики"
+    id: scan_button
+    device_id: ds1820_temp
+    on_press:
+      - script.execute: scan_sensors
