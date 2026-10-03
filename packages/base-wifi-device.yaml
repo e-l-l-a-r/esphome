@@ -1,19 +1,30 @@
+# Сеть, API Home Assistant и OTA.
+# В удалённых (git) пакетах ESPHome не поддерживает !secret, поэтому значения
+# передаются через подстановки. Задайте их в конфигурации устройства, например:
+#
+# substitutions:
+#   api_key: !secret mydevice_api_key
+#   ota_password: !secret mydevice_ota_password
+#   wifi_ssid: !secret wifi_ssid
+#   wifi_password: !secret wifi_password
+#   ap_password: !secret mydevice_ap_password
+
 # Enable Home Assistant API
 api:
   encryption:
-    key: !secret api_key
+    key: "${api_key}"
 
 ota:
   - platform: esphome
-    password: !secret ota_password
+    password: "${ota_password}"
 
 wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
+  ssid: "${wifi_ssid}"
+  password: "${wifi_password}"
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
     ssid: "${device_name} Hotspot"
-    password: !secret ap_password
+    password: "${ap_password}"
 
 captive_portal:
