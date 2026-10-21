@@ -1,0 +1,15 @@
+# Secrets: never commit
+secrets.yaml
+*.secrets.yaml
+.env
+*.key
+*.pem
+
+# ESPHome build artifacts
+.esphome/
+.pioenvs/
+.piolibdeps/
+
+# Python
+__pycache__/
+*.pyc

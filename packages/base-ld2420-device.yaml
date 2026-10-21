@@ -1,0 +1,72 @@
+# Радар присутствия HLK-LD2420 (UART).
+# Пины можно переопределить в конфигурации устройства через substitutions:
+#   ld2420_tx_pin: GPIO07
+#   ld2420_rx_pin: GPIO06
+
+substitutions:
+  ld2420_tx_pin: GPIO07
+  ld2420_rx_pin: GPIO06
+
+uart:
+  - id: ld2420_uart
+    tx_pin: ${ld2420_tx_pin}
+    rx_pin: ${ld2420_rx_pin}
+    baud_rate: 115200
+    parity: NONE
+    stop_bits: 1
+
+ld2420:
+  id: ld2420_radar
+  uart_id: ld2420_uart
+
+text_sensor:
+  - platform: ld2420
+    ld2420_id: ld2420_radar
+    fw_version:
+      name: LD2420 Firmware
+
+sensor:
+  - platform: ld2420
+    ld2420_id: ld2420_radar
+    moving_distance:
+      name: Moving Distance
+
+binary_sensor:
+  - platform: ld2420
+    ld2420_id: ld2420_radar
+    has_target:
+      name: Presence
+
+select:
+  - platform: ld2420
+    ld2420_id: ld2420_radar
+    operating_mode:
+      name: Operating Mode
+
+number:
+  - platform: ld2420
+    ld2420_id: ld2420_radar
+    presence_timeout:
+      name: Detection Presence Timeout
+    min_gate_distance:
+      name: Detection Gate Minimum
+    max_gate_distance:
+      name: Detection Gate Maximum
+    gate_select:
+      name: Select Gate to Set
+    still_threshold:
+      name: Set Still Threshold Value
+    move_threshold:
+      name: Set Move Threshold Value
+
+button:
+  - platform: ld2420
+    ld2420_id: ld2420_radar
+    apply_config:
+      name: Apply Config
+    factory_reset:
+      name: Factory Reset
+    restart_module:
+      name: Restart Module
+    revert_config:
+      name: Undo Edits

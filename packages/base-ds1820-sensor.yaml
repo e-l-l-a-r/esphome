@@ -1,0 +1,48 @@
+sensor:
+  - platform: ds18b20
+    id: "${id}"
+    name: "${name}"
+    device_id: "${device}"
+    unit_of_measurement: "°C"
+    device_class: "temperature"
+    accuracy_decimals: 1
+    update_interval: 10s
+
+number:
+  - platform: template
+    id: "offset_${id}"
+    initial_value: 0
+    name: "${name} Offset"
+    device_id: "${device}"
+    optimistic: true
+    restore_value: true
+    min_value: -3
+    max_value: 3
+    step: 0.1
+    set_action: 
+      - lambda: |-
+          id(${id})->set_offset(x);
+
+text:
+  - platform: template
+    id: "address_${id}"
+    initial_value: ""
+    name: "${name} Address"
+    device_id: "${device}"
+    optimistic: true
+    restore_value: true
+    max_length: 20
+    mode: text
+    set_action: 
+      - lambda: |-
+          id(${id})->set_str_address(x);
+
+script:
+  - id: "init_${id}"
+    mode: restart
+    then:
+      - lambda: |-
+          if (!std::isnan(id(offset_${id}).state))
+            id(${id})->set_offset(id(offset_${id}).state);
+          if (!id(address_${id}).state.empty())
+            id(${id})->set_str_address(id(address_${id}).state);

@@ -1,12 +1,23 @@
 #include "ds18b20.h"
+#include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
+
+#include <cmath>
+#include <cstdlib>
 
 namespace esphome {
 namespace ds18b20 {
 
   static const char *const TAG = "ds18b20.temp.sensor";
 
+  // Имя таймаута чтения. Планировщик ESPHome различает таймауты по паре
+  // (компонент, имя), поэтому статической строки достаточно для каждого экземпляра.
+  // С 2026.7.0 set_timeout() принимает только const char* со статическим временем жизни
+  // или числовой id — перегрузка с std::string удалена.
+  static const char *const READ_TIMEOUT_NAME = "read";
+
   static const uint8_t DALLAS_MODEL_DS18S20 = 0x10;
+  static const uint8_t DALLAS_MODEL_DS18B20 = 0x28;
   static const uint8_t DALLAS_COMMAND_START_CONVERSION = 0x44;
   static const uint8_t DALLAS_COMMAND_READ_SCRATCH_PAD = 0xBE;
   static const uint8_t DALLAS_COMMAND_WRITE_SCRATCH_PAD = 0x4E;
@@ -33,6 +44,7 @@ namespace ds18b20 {
     }
     LOG_ONE_WIRE_DEVICE(this);
     ESP_LOGCONFIG(TAG, "  Resolution: %u bits", this->resolution_);
+    ESP_LOGCONFIG(TAG, "  Offset: %.1f", this->offset_);
     LOG_UPDATE_INTERVAL(this);
   }
 
@@ -44,15 +56,19 @@ namespace ds18b20 {
 
     this->send_command_(DALLAS_COMMAND_START_CONVERSION);
 
-    this->set_timeout(this->get_address_name(), this->millis_to_wait_for_conversion_(), [this] {
+    this->set_timeout(READ_TIMEOUT_NAME, this->millis_to_wait_for_conversion_(), [this] {
       if (!this->read_scratch_pad_() || !this->check_scratch_pad_()) {
         this->publish_state(NAN);
         return;
       }
 
       float tempc = this->get_temp_c_();
-      ESP_LOGD(TAG, "'%s': Got Temperature=%.1f°C; Offset = %.1f", this->get_name().c_str(), tempc, offset_);
-      this->publish_state(tempc + offset_);
+      if (std::isnan(tempc)) {
+        this->publish_state(NAN);
+        return;
+      }
+      ESP_LOGD(TAG, "'%s': Got Temperature=%.1f°C; Offset = %.1f", this->get_name().c_str(), tempc, this->offset_);
+      this->publish_state(tempc + this->offset_);
     });
   }
 
@@ -64,13 +80,15 @@ namespace ds18b20 {
       }
     } else {
       ESP_LOGW(TAG, "'%s' - reading scratch pad failed bus reset", this->get_name().c_str());
-      this->status_set_warning("bus reset failed");
+      this->status_set_warning(LOG_STR("bus reset failed"));
     }
     return success;
   }
 
   void DS18B20Sensor::setup() {
-    if (this->address_ == 0)
+    // Определяет адрес по index: или автоматически (если на шине одно устройство).
+    // Без этого вызова датчик, заданный через index: или без address:, никогда не опрашивался.
+    if (!this->check_address_or_index_())
       return;
     if (!this->read_scratch_pad_())
       return;
@@ -124,7 +142,7 @@ namespace ds18b20 {
               crc8(this->scratch_pad_, 8));
   #endif
     if (!chksum_validity) {
-      this->status_set_warning("scratch pad checksum invalid");
+      this->status_set_warning(LOG_STR("scratch pad checksum invalid"));
       ESP_LOGD(TAG, "Scratch pad: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X (%02X)", this->scratch_pad_[0],
                this->scratch_pad_[1], this->scratch_pad_[2], this->scratch_pad_[3], this->scratch_pad_[4],
                this->scratch_pad_[5], this->scratch_pad_[6], this->scratch_pad_[7], this->scratch_pad_[8],
@@ -136,7 +154,10 @@ namespace ds18b20 {
   float DS18B20Sensor::get_temp_c_() {
     int16_t temp = (this->scratch_pad_[1] << 8) | this->scratch_pad_[0];
     if ((this->address_ & 0xff) == DALLAS_MODEL_DS18S20) {
-      return (temp >> 1) + (this->scratch_pad_[7] - this->scratch_pad_[6]) / float(this->scratch_pad_[7]) - 0.25;
+      // Защита от деления на ноль: scratch pad из одних нулей проходит проверку CRC.
+      if (this->scratch_pad_[7] == 0)
+        return NAN;
+      return (temp >> 1) + (this->scratch_pad_[7] - this->scratch_pad_[6]) / float(this->scratch_pad_[7]) - 0.25f;
     }
     switch (this->resolution_) {
       case 9:
@@ -152,34 +173,52 @@ namespace ds18b20 {
       default:
         break;
     }
-
+    // 85 °C — значение по включении питания: датчик сбросился и ещё не измерял.
+    // https://github.com/cpetrich/counterfeit_DS18B20#solution-to-the-85-c-problem
+    if ((this->address_ & 0xff) == DALLAS_MODEL_DS18B20) {
+      if ((temp == 85 * 16) && (this->scratch_pad_[6] == 0x0c)) {
+        ESP_LOGD(TAG, "dropping reading caused by sensor reset");
+        return NAN;
+      }
+    }
     return temp / 16.0f;
   }
 
   void DS18B20Sensor::rescan() {
-      this->bus_->search();
+    this->bus_->search();
   }
 
-  const std::vector<std::string> DS18B20Sensor::get_devices()
-  {
-      std::vector<std::string> devices_;
-      for( auto item:this->bus_->get_devices() )
-          devices_.push_back( std::string("0x") + format_hex(item) );
-      return devices_;
+  std::vector<std::string> DS18B20Sensor::get_devices() {
+    std::vector<std::string> result;
+    // format_hex(uint64_t) устарел и будет удалён в 2026.11.0 — используем буфер на стеке.
+    char buf[format_hex_prefixed_size(sizeof(uint64_t))];
+    for (uint64_t item : this->bus_->get_devices())
+      result.emplace_back(format_hex_prefixed_to(buf, item));
+    return result;
   }
 
-  void DS18B20Sensor::set_str_address(const std::string &address){
-    this->address_ = std::stoull(address, nullptr, 16);
-    ESP_LOGD(TAG, "Set address to: 0x%s", format_hex(this->address_).c_str());
-    setup();
-    update();
+  void DS18B20Sensor::set_str_address(const std::string &address) {
+    // std::stoull бросает исключение на некорректной строке, а прошивки ESPHome
+    // собираются без исключений — это приводило к перезагрузке. strtoull безопасен.
+    const char *str = address.c_str();
+    char *end = nullptr;
+    uint64_t addr = strtoull(str, &end, 16);  // префикс "0x" допускается
+    if (end == str || *end != '\0' || addr == 0) {
+      ESP_LOGW(TAG, "Invalid address: '%s'", str);
+      return;
+    }
+    // set_address() сбрасывает кешированное имя адреса (используется в логах);
+    // прямое присваивание address_ оставляло в логах старый адрес.
+    this->set_address(addr);
+    ESP_LOGD(TAG, "Set address to: %s", this->get_address_name().c_str());
+    this->setup();
+    this->update();
   }
 
-  void DS18B20Sensor::set_offset(const float offset)
-  {
-    offset_ = offset;
-    ESP_LOGD(TAG, "Set offset to: %.1f", offset_);
+  void DS18B20Sensor::set_offset(float offset) {
+    this->offset_ = offset;
+    ESP_LOGD(TAG, "Set offset to: %.1f", this->offset_);
   }
 
-} // ds18b20
-} // esphome
+} // namespace ds18b20
+} // namespace esphome
